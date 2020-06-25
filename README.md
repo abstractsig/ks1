@@ -1,2 +1,2 @@
 # lilliput
-portable io device configuration tool
+portable io-device configuration tool
