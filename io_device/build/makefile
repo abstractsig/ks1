@@ -20,13 +20,13 @@ CC = $(TOOL_PREFIX)gcc
 #
 # flags
 #
-OPTIMISATION = -O2
+OPTIMISATION = -O0
 WARNINGS = -Wall
 DEFS = -DDEVICE_NAME="\"$(APPLICATION_NAME)\""
 TARGET_FLAGS = -DSTM32F40_41xxx -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb 
 GENERIC_FLAGS = -fomit-frame-pointer -ffunction-sections -fdata-sections -nostdlib -nostartfiles -std=c99 -g3
 COMPILE_FLAGS = $(DEFS) $(TARGET_FLAGS) $(GENERIC_FLAGS) $(OPTIMISATION) $(WARNINGS) -fno-diagnostics-color -Wno-address-of-packed-member
-LINK_FLAGS = $(TARGET_FLAGS) --specs=nosys.specs -T$(DEVICE_DIR)/linker/stm32f405rg.ld -Wl,--gc-sections \
+LINK_FLAGS = $(TARGET_FLAGS) --specs=nosys.specs -T$(DEVICE_DIR)/linker/stm32f405g.ld -Wl,--gc-sections \
 	-Wl,-Map=$(APPLICATION_NAME).map
 #
 #
