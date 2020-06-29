@@ -1,0 +1,12 @@
+[submodule "io_core"]
+	path = io_core
+	url = https://github.com/abstractsig/io_core.git
+[submodule "io_cpu"]
+	path = io_cpu
+	url = https://github.com/abstractsig/io_stm32f405.git
+[submodule "io_board"]
+	path = io_board
+	url = https://github.com/abstractsig/mikromedia_3_stm32f4_capacitive.git
+[submodule "io_components"]
+	path = io_components
+	url = https://github.com/abstractsig/io_components.git
