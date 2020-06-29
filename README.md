@@ -1,2 +1,2 @@
 # KS1
-portable io-device configuration tool
+portable configuration tool for io devices
