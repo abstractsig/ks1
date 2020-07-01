@@ -48,6 +48,7 @@
 
 #define MIN(a,b) 				(((a)<(b))?(a):(b))
 #define plural(v)				(((v) > 1)? "s" : "")
+#define KB(n)					((n) * 1024)
 
 //
 // a method of producing compile-time size assertions

@@ -47,6 +47,11 @@ enum {
 	NUMBER_OF_IO_SOCKETS
 };
 
+#define IO_LOG_SOCKET		USART1_SOCKET
+
+#include <jsimport/std/module.h>
+#include <jsimport/io/namespace.h>
+#include <jsimport/filesystem/module.h>
 
 typedef struct PACK_STRUCTURE device_io {
 	STM32F4_IO_CPU_STRUCT_MEMBERS;
@@ -62,7 +67,7 @@ bool test_device (io_t*,vref_t);
 #ifdef IMPLEMENT_IO_DEVICE
 
 #define UMM_VALUE_MEMORY_HEAP_SIZE		0x1000
-#define UMM_GLOBAL_HEAP_SIZE				(0xc000 + UMM_VALUE_MEMORY_HEAP_SIZE)
+#define UMM_GLOBAL_HEAP_SIZE				(KB(128))
 #define UMM_SECTION_DESCRIPTOR      	__attribute__ ((section(".umm")))
 
 static uint8_t ALLOCATE_ALIGN(8) UMM_SECTION_DESCRIPTOR
@@ -224,15 +229,28 @@ io_device_get_core_clock (io_t *io) {
 	return IO_CPU_CLOCK(&cpu_core_clock);
 }
 
-/*
 void
-add_io_implementation_device_methods (io_implementation_t *io_i) {
-	add_io_implementation_board_methods (io_i);
-
-	io_i->get_core_clock = stm32f4_get_core_clock;
-	io_i->get_socket = io_device_get_socket;
+device_log (io_t *io,char const *fmt,va_list va) {
+	io_socket_t *print = io_get_socket (io,USART1_SOCKET);
+	if (print) {
+		io_encoding_t *msg = io_socket_new_message (print);
+		if (msg) {
+			io_encoding_print (msg,fmt,va);
+			io_socket_send_message (print,msg);
+		} else {
+			io_panic (io,IO_PANIC_OUT_OF_MEMORY);
+		}
+	}
 }
-*/
+
+void
+flush_device_log (io_t *io) {
+	io_socket_t *print = io_get_socket (io,USART1_SOCKET);
+	if (print) {
+		io_socket_flush (print);
+	}
+}
+
 
 #define SPECIALISE_IO_DEVICE_IMPLEMENTATION(S) \
     SPECIALISE_IO_BOARD_IMPLEMENTATION(S) \
@@ -242,6 +260,8 @@ add_io_implementation_device_methods (io_implementation_t *io_i) {
 
 static io_implementation_t io_i = {
 	SPECIALISE_IO_DEVICE_IMPLEMENTATION(NULL)
+	.log = device_log,
+	.flush_log = flush_device_log,
 };
 
 device_io_t dev_io = {0};
