@@ -32,22 +32,32 @@
  */
 bool
 test_device (io_t *io,vref_t r_shell) {
-	V_runner_t runner = {
-		.user_value = r_shell,
-		.io = io,
-	};
-	V_start_tests(&runner);
+	if (io_is_first_run(io)) {
+		V_runner_t runner = {
+			.user_value = r_shell,
+			.io = io,
+		};
+		V_start_tests(&runner);
 
-	run_ut_io_device (&runner);
-	run_ut_io_cpu (&runner);
-	run_ut_io_core_containers (&runner);
-	run_ut_io_core_values (&runner);
-	run_ut_io_core_graphics (&runner);
-	run_ut_io_core_sockets (&runner);
-	run_ut_quickjs (&runner);
+		run_ut_io_device (&runner);
+		run_ut_io_cpu (&runner);
+		run_ut_io_core_containers (&runner);
+		run_ut_io_core_values (&runner);
+		run_ut_io_core_graphics (&runner);
+		run_ut_io_core_sockets (&runner);
+		run_ut_quickjs (&runner);
 
-	print_unit_test_report (&runner);
-	return runner.total_failed == 0;
+		print_unit_test_report (&runner);
+		
+		if (runner.total_failed == 0) {
+			io_clear_first_run (io);
+			return true;
+		} else {
+			return false;
+		}
+	} else {
+		return true;
+	}
 }
 
 
