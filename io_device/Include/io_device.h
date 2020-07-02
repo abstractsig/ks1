@@ -43,6 +43,7 @@
 	 
 enum {
 	USART1_SOCKET,
+	SPI1_SOCKET,
 
 	NUMBER_OF_IO_SOCKETS
 };

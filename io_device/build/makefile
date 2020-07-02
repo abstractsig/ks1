@@ -51,7 +51,7 @@ DEPENDS = $(IO_DIR)/*.h \
 JSDEPENDS = $(JS_DIR)/*.h \
 	$(JS_DIR)/quickjs/*.h $(JS_DIR)/quickjs/*.c \
 	$(JS_DIR)/jsimport/std/*.h \
-	$(JS_DIR)/jsimport/filesystem/*.h \
+	$(JS_DIR)/jsimport/filesystem/*.h $(JS_DIR)/jsimport/filesystem/*.c \
 	$(JS_DIR)/jsimport/io/*.h
 
 INCLUDE_DIRS = -I$(DEVICE_DIR)/include \
