@@ -21,10 +21,10 @@
  *                        |16 PD1       PA8  16| 
  *          SPI1 SCK      |17 PA15      PB10 17| 
  *               MISO     |18 PA5       PB11 18| 
- *               MOSI     |19 PA6       PC7  19|  UART2 RX 
- *                        |20 PA7       PC6  20|  UART2 TX
- *                        |21 PC13      PA3  21|  UART1 RX
- *                        |22 PB3       PD5  22|  UART1 TX
+ *               MOSI     |19 PA6       PC7  19|  UART6 RX 
+ *               SS       |20 PA7       PC6  20|  UART6 TX
+ *               RST      |21 PC13      PA3  21|  UART2 RX
+ *               IRQ      |22 PB3       PD5  22|  UART2 TX
  *                        |23 PB4       PB6  23| 
  *                        |24 PB5       PB7  24| 
  *                        |25 3V3       0V   25| 
@@ -37,22 +37,26 @@
 #define io_device_H_
 #include <io_board.h>
 #include <io_graphics.h>
+#include <stm32f4_spi.h>
+#include <nfc/MFRC522.h>
 
 #define DEFAULT_GAMMA_CORRECTION				1.8
 
 	 
 enum {
-	USART1_SOCKET,
-	SPI1_SOCKET,
-
+	USART2_SOCKET,
+	SPI1_SOCKET_ID,
+	SPI2_SOCKET_ID,
+	MFRC522_SOCKET,
+	
 	NUMBER_OF_IO_SOCKETS
 };
 
-#define IO_LOG_SOCKET		USART1_SOCKET
+#define IO_LOG_SOCKET		USART2_SOCKET
 
+#define JS_CONFIG_WITH_BIGNUM
 #include <jsimport/std/module.h>
 #include <jsimport/io/namespace.h>
-#include <jsimport/filesystem/module.h>
 
 typedef struct PACK_STRUCTURE device_io {
 	STM32F4_IO_CPU_STRUCT_MEMBERS;
@@ -105,7 +109,7 @@ register_io_value_memory (io_value_memory_t *vm) {
  * ks1 CPU Clock Tree
  *
  *    +----------+        
- *    | LSE/1    |-+------>
+ *    | LSE/1    |-+------>                                    // 32kHz
  *    +----------+       
  *
  *    +----------+         +---------+          +--------+
@@ -119,17 +123,18 @@ register_io_value_memory (io_value_memory_t *vm) {
  *    +----------+ |       +---------+          +--------+
  *                 |
  *                 |       +---------+  84MHz   +---------+
- *                 +------>| APB2/2  |--------->| UART1   |		// console uart
+ *                 +------>| APB2/2  |--------->| UART2   |		// console uart
  *                 |       +---------+   |      +---------+
  *                 |                     |
  *                 |                     |      +---------+
- *                 |                     |----->|         |		//
+ *                 |                     |----->| SPI1    |		//
  *                 |                     |      +---------+
  *
  *-----------------------------------------------------------------------------
  */
 extern EVENT_DATA stm32f4_core_clock_t cpu_core_clock;
 static EVENT_DATA stm32f4_pll_t pll;
+static EVENT_DATA stm32f4_peripheral_clock_t dma2_clock;
 
 static EVENT_DATA stm32f4_rc_oscillator_t hsi_osc = {
 	.implementation = &stm32f4_hsi_oscillator_implementation,
@@ -140,18 +145,28 @@ static EVENT_DATA stm32f4_apb_clock_t ahb_clock = {
 	.implementation = &stm32f4_ahb_clock_implementation,
 	.input = decl_io_cpu_clock_pointer(&pll),
 	.divider = 1,
+	.outputs = (const io_cpu_clock_pointer_t []) {
+		{NULL}
+	},
 };
 
 static EVENT_DATA stm32f4_apb_clock_t apb1_clock = {
 	.implementation = &stm32f4_apb1_clock_implementation,
 	.input = decl_io_cpu_clock_pointer(&ahb_clock),
 	.divider = 4,
+	.outputs = (const io_cpu_clock_pointer_t []) {
+		decl_io_cpu_clock_pointer(&dma2_clock),
+		{NULL}
+	},
 };
 
 static EVENT_DATA stm32f4_apb_clock_t apb2_clock = {
 	.implementation = &stm32f4_apb2_clock_implementation,
 	.input = decl_io_cpu_clock_pointer(&ahb_clock),
 	.divider = 2,
+	.outputs = (const io_cpu_clock_pointer_t []) {
+		{NULL}
+	},
 };
 
 static EVENT_DATA stm32f4_pll_t pll = {
@@ -171,20 +186,23 @@ EVENT_DATA stm32f4_core_clock_t cpu_core_clock = {
 	.input = IO_CPU_CLOCK(&pll),
 };
 
-static io_socket_t*
-io_device_get_socket (io_t *io,int32_t handle) {
-	if (handle >= 0 && handle < NUMBER_OF_IO_SOCKETS) {
-		device_io_t *this = (device_io_t*) io;
-		return this->sockets[handle];
-	} else {
-		return NULL;
-	}
-}
-
-static EVENT_DATA stm32f4_peripheral_clock_t usart1_clock = {
+static EVENT_DATA stm32f4_peripheral_clock_t dma2_clock = {
 	.implementation = &stm32f4_apb_peripheral_clock_implementation,
-	.input = decl_io_cpu_clock_pointer(&apb2_clock),
-	.enable_apb_clock = stm32f4_enable_uart1_apb_clock,
+	.input = decl_io_cpu_clock_pointer(&ahb_clock),
+	.enable_apb_clock = stm32f4_enable_dma2_ahb_clock,
+};
+
+stm32f4_io_dma_controller_t dma2_controller = {
+	.implementation = &stm32f4_io_dma_controller_implementation,
+	.peripheral_bus_clock = decl_io_cpu_clock_pointer(&dma2_clock),
+	.cpu_registers = DMA2,
+};
+
+
+static EVENT_DATA stm32f4_peripheral_clock_t usart2_clock = {
+	.implementation = &stm32f4_apb_peripheral_clock_implementation,
+	.input = decl_io_cpu_clock_pointer(&apb1_clock),
+	.enable_apb_clock = stm32f4_enable_uart2_apb_clock,
 };
 
 static io_socket_t*
@@ -193,24 +211,24 @@ usart1_socket (io_t *io,io_address_t address) {
 		.implementation = &stm32f4_uart_implementation,
 		.io = NULL,
 		.encoding = &io_text_encoding_implementation,
-		.peripheral_bus_clock = decl_io_cpu_clock_pointer(&usart1_clock),
-		.uart_registers = USART1,
-		.interrupt_number = USART1_IRQn,
+		.peripheral_bus_clock = decl_io_cpu_clock_pointer(&usart2_clock),
+		.uart_registers = USART2,
+		.interrupt_number = USART2_IRQn,
 		.baud_rate = CONTROL_UART_SPEED,
 		.tx_pin.stm = {
-			.port_id = STM_GPIO_PORT_A,
-			.number = GPIO_PinSource9,
-			.function = GPIO_Mode_AF,
-			.alternate = GPIO_AF_USART1,
+			.port_id = STM_GPIO_PORT_D,
+			.number = GPIO_PinSource5,
+			.mode = GPIO_Mode_AF,
+			.alternate = GPIO_AF_USART2,
 			.speed = GPIO_High_Speed,
 			.output_type = GPIO_OType_PP,
 			.pull = GPIO_PuPd_NOPULL,
 		},
 		.rx_pin.stm = {
 			.port_id = STM_GPIO_PORT_A,
-			.number = GPIO_PinSource10,
-			.function = GPIO_Mode_AF,
-			.alternate = GPIO_AF_USART1,
+			.number = GPIO_PinSource3,
+			.mode = GPIO_Mode_AF,
+			.alternate = GPIO_AF_USART2,
 			.speed = GPIO_High_Speed,
 			.output_type = GPIO_OType_PP,
 			.pull = GPIO_PuPd_NOPULL,
@@ -225,14 +243,168 @@ EVENT_DATA io_settings_t usart1_settings = {
 	.receive_pipe_length = 512,
 };
 
+static EVENT_DATA stm32f4_peripheral_clock_t spi1_clock = {
+	.implementation = &stm32f4_apb_peripheral_clock_implementation,
+	.input = decl_io_cpu_clock_pointer(&apb2_clock),
+	.enable_apb_clock = stm32f4_enable_spi1_apb_clock,
+};
+
+static io_socket_t*
+spi1_socket (io_t *io,io_address_t address) {
+	static stm32f4_dma_spi_socket_t spi = {
+		.implementation = &stm32f4_dma_spi_socket_implementation,
+		.peripheral_bus_clock = decl_io_cpu_clock_pointer(&spi1_clock),
+		.spi_registers = SPI1,
+		.maximum_sck_frequency = 10000000,
+		.tx_dma_channel = {
+			.controller = (io_dma_controller_t*) &dma2_controller,
+			.stream_registers = DMA2_Stream3,
+			.interrupt_number = DMA2_Stream3_IRQn,
+			.channel_number = 3,
+		},
+		.rx_dma_channel = {
+			.controller = (io_dma_controller_t*) &dma2_controller,
+			.stream_registers = DMA2_Stream2,
+			.interrupt_number = DMA2_Stream2_IRQn,
+			.channel_number = 3,
+		},
+		.miso_pin.stm = {
+			.port_id = STM_GPIO_PORT_A,
+			.number = GPIO_PinSource5,
+			.mode = GPIO_Mode_AF,
+			.alternate = GPIO_AF_SPI1,
+			.speed = GPIO_High_Speed,
+			.pull = GPIO_PuPd_NOPULL,
+		},
+		.mosi_pin.stm = {
+			.port_id = STM_GPIO_PORT_A,
+			.number = GPIO_PinSource6,
+			.mode = GPIO_Mode_AF,
+			.alternate = GPIO_AF_SPI1,
+			.speed = GPIO_High_Speed,
+			.pull = GPIO_PuPd_NOPULL,
+		},
+		.sck_pin.stm = {
+			.port_id = STM_GPIO_PORT_A,
+			.number = GPIO_PinSource15,
+			.mode = GPIO_Mode_AF,
+			.alternate = GPIO_AF_SPI1,
+			.speed = GPIO_High_Speed,
+			.pull = GPIO_PuPd_NOPULL,
+		},
+		.ss_pin.stm = {
+			.port_id = STM_GPIO_PORT_A,
+			.number = GPIO_PinSource7,
+			.active_level = IO_PIN_ACTIVE_LOW,
+			.initial_state = IO_PIN_INACTIVE,
+			.mode = GPIO_Mode_OUT,
+			.speed = GPIO_High_Speed,
+			.output_type = GPIO_OType_PP,
+			.pull = GPIO_PuPd_NOPULL,
+		},
+	};
+	return (io_socket_t*) &spi;
+}
+
+EVENT_DATA io_settings_t spi1_settings = {
+	.encoding = &io_binary_encoding_implementation,
+	.transmit_pipe_length = 32,
+	.receive_pipe_length = 32,
+};
+
+static EVENT_DATA stm32f4_peripheral_clock_t spi2_clock = {
+	.implementation = &stm32f4_apb_peripheral_clock_implementation,
+	.input = decl_io_cpu_clock_pointer(&apb2_clock),
+	.enable_apb_clock = stm32f4_enable_spi2_apb_clock,
+};
+		
+static io_socket_t*
+spi2_socket (io_t *io,io_address_t address) {
+	static stm32f4_spi_socket_t spi = {
+		.implementation = &stm32f4_spi_socket_implementation,
+		.peripheral_bus_clock = decl_io_cpu_clock_pointer(&spi2_clock),
+		.spi_registers = SPI2,
+		.maximum_sck_frequency = 10000000,
+		.miso_pin.stm = def_stm32f4_function_pin (
+			STM_GPIO_PORT_B,
+			GPIO_PinSource14,
+			GPIO_AF_SPI2,
+			GPIO_High_Speed
+		),
+		.mosi_pin.stm = def_stm32f4_function_pin (
+			STM_GPIO_PORT_B,
+			GPIO_PinSource15,
+			GPIO_AF_SPI2,
+			GPIO_High_Speed
+		),
+		.sck_pin.stm = def_stm32f4_function_pin (
+			STM_GPIO_PORT_B,
+			GPIO_PinSource13,
+			GPIO_AF_SPI2,
+			GPIO_High_Speed
+		),
+		.ss_pin.stm = def_stm32f4_output_pin (
+			STM_GPIO_PORT_E,
+			GPIO_PinSource8,
+			IO_PIN_ACTIVE_LOW,
+			IO_PIN_INACTIVE,
+			GPIO_High_Speed
+		), 
+	};
+	return (io_socket_t*) &spi;
+};
+
+EVENT_DATA io_settings_t spi2_settings = {
+	.encoding = &io_binary_encoding_implementation,
+	.transmit_pipe_length = 32,
+	.receive_pipe_length = 32,
+};
+
+
+static io_socket_t*
+mfrc522_socket (io_t *io,io_address_t address) {
+	mfrc522_io_socket_t *socket = io_byte_memory_allocate (
+		io_get_byte_memory (io),sizeof(mfrc522_io_socket_t)
+	);
+
+	stm32f4_io_pin_t reset = {.stm ={
+		.port_id = STM_GPIO_PORT_C,
+		.number = GPIO_PinSource13,
+		.active_level = IO_PIN_ACTIVE_LOW,
+		.initial_state = IO_PIN_ACTIVE,
+		.mode = GPIO_Mode_OUT,
+		.speed = GPIO_Medium_Speed,
+		.output_type = GPIO_OType_PP,
+		.pull = GPIO_PuPd_NOPULL,
+	}};
+	
+	socket->implementation = &mfrc522_io_socket_implementation;
+	socket->reset_pin = reset.io;
+
+	return (io_socket_t*) socket;
+}
+
+//
+//
+//
 static io_cpu_clock_pointer_t
 io_device_get_core_clock (io_t *io) {
 	return IO_CPU_CLOCK(&cpu_core_clock);
 }
 
+static io_socket_t*
+io_device_get_socket (io_t *io,int32_t handle) {
+	if (handle >= 0 && handle < NUMBER_OF_IO_SOCKETS) {
+		device_io_t *this = (device_io_t*) io;
+		return this->sockets[handle];
+	} else {
+		return NULL;
+	}
+}
+
 void
 device_log (io_t *io,char const *fmt,va_list va) {
-	io_socket_t *print = io_get_socket (io,USART1_SOCKET);
+	io_socket_t *print = io_get_socket (io,USART2_SOCKET);
 	if (print) {
 		io_encoding_t *msg = io_socket_new_message (print);
 		if (msg) {
@@ -246,12 +418,11 @@ device_log (io_t *io,char const *fmt,va_list va) {
 
 void
 flush_device_log (io_t *io) {
-	io_socket_t *print = io_get_socket (io,USART1_SOCKET);
+	io_socket_t *print = io_get_socket (io,USART2_SOCKET);
 	if (print) {
 		io_socket_flush (print);
 	}
 }
-
 
 #define SPECIALISE_IO_DEVICE_IMPLEMENTATION(S) \
     SPECIALISE_IO_BOARD_IMPLEMENTATION(S) \
@@ -268,7 +439,10 @@ static io_implementation_t io_i = {
 device_io_t dev_io = {0};
 
 const socket_builder_t my_sockets[] = {
-	{USART1_SOCKET,			usart1_socket,io_invalid_address(),&usart1_settings,true,NULL},
+	{USART2_SOCKET,		usart1_socket,io_invalid_address(),&usart1_settings,true,NULL},
+	{MFRC522_SOCKET,		mfrc522_socket,io_invalid_address(),NULL,false,BINDINGS({MFRC522_SOCKET,SPI1_SOCKET_ID})},
+	{SPI1_SOCKET_ID,		spi1_socket,io_invalid_address(),&spi1_settings,false,NULL},
+	{SPI2_SOCKET_ID,		spi2_socket,io_invalid_address(),&spi2_settings,false,NULL},
 };
 
 io_t*
@@ -277,6 +451,7 @@ initialise_io_device (void) {
 
 	initialise_io (io,&io_i);
 	initialise_io_board (io);
+	dma2_controller.io = io;
 
 	dev_io.bm = initialise_io_byte_memory (io,&heap_byte_memory,UMM_BLOCK_SIZE_1N);
 	dev_io.vm = mk_umm_io_value_memory (io,UMM_VALUE_MEMORY_HEAP_SIZE,STVM);

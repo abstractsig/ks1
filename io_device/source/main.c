@@ -21,7 +21,7 @@ build_js (io_t *io,JSRuntime **rt) {
 		END_OF_JS_IO_SOCKETS
 	};
 	
-	static const io_js_device_configuration_t io_resources = {
+	static const js_device_io_resources_t io_resources = {
 		.filesystems = NULL,
 		.pins = NULL,
 		.sockets = sockets,
@@ -60,6 +60,23 @@ main(void) {
 			JSRuntime *rt;
 			
 			build_js (io,&rt);
+			
+			{
+				memory_info_t bm;
+				io_byte_memory_get_info (io_get_byte_memory(io),&bm);
+				io_log (
+					io,IO_INFO_LOG_LEVEL,"%-*s%-*scomplete with %u bytes of %u used\n",
+					DBP_FIELD1,DEVICE_NAME,
+					DBP_FIELD2,"startup",
+					bm.used_bytes,bm.total_bytes
+				);
+			}
+			//
+			// just testing
+			//
+			io_socket_t *spi = io_get_socket (io,SPI1_SOCKET_ID);
+			call_io_socket_state_open (spi,IO_SOCKET_OPEN_CONNECT);
+			////
 			
 			while (1) {
 				io_js_do_tasks (rt);

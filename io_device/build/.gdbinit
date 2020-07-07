@@ -45,4 +45,7 @@ set mem inaccessible-by-default off
 #
 # arm-none-eabi-gdb -ex "target remote localhost:2331" ks1.elf
 #
-
+# or bmp
+#
+# arm-none-eabi-gdb -ex "target extended-remote \\\\.\\COM6" ks1.elf
+#

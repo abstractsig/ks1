@@ -12,6 +12,7 @@ APPLICATION_UID = "'u','i','d','0','0','0','0','0','0','0','0','0','0','k','s','
 IO_DIR = ../../io_core
 CPU_DIR = ../../io_cpu
 BOARD_DIR = ../../io_board
+COMPONENT_DIR = ../../io_components
 JS_DIR = ../../io_js
 DEVICE_DIR = ..
 DEVICE_SOURCE_DIR = $(DEVICE_DIR)/source
@@ -23,7 +24,7 @@ CC = $(TOOL_PREFIX)gcc
 #
 # flags
 #
-OPTIMISATION = -O0
+OPTIMISATION = -O2
 WARNINGS = -Wall
 DEFS = -DDEVICE_NAME="\"$(APPLICATION_NAME)\"" -DSTATIC_UID=$(APPLICATION_UID)
 TARGET_FLAGS = -DSTM32F40_41xxx -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb 
@@ -41,9 +42,10 @@ LINK_FLAGS = $(TARGET_FLAGS) --specs=nosys.specs -T$(DEVICE_DIR)/linker/stm32f40
 #
 OBJECTS = main.o js.o test.o
 DEPENDS = $(IO_DIR)/*.h \
-	$(JS_DIR)/io_js.h\
+	$(COMPONENT_DIR)/nfc/*.h\
 	$(CPU_DIR)/*.h \
 	$(CPU_DIR)/cmsis/*.h \
+	$(JS_DIR)/io_js.h\
 	$(DEVICE_DIR)/include/*.h \
 	$(BOARD_DIR)/*.h \
 	makefile
@@ -51,11 +53,11 @@ DEPENDS = $(IO_DIR)/*.h \
 JSDEPENDS = $(JS_DIR)/*.h \
 	$(JS_DIR)/quickjs/*.h $(JS_DIR)/quickjs/*.c \
 	$(JS_DIR)/jsimport/std/*.h \
-	$(JS_DIR)/jsimport/filesystem/*.h $(JS_DIR)/jsimport/filesystem/*.c \
-	$(JS_DIR)/jsimport/io/*.h
+	$(JS_DIR)/jsimport/io/*.h $(JS_DIR)/jsimport/io/*.c
 
 INCLUDE_DIRS = -I$(DEVICE_DIR)/include \
 	-I$(IO_DIR) \
+	-I$(COMPONENT_DIR) \
 	-I$(CPU_DIR) \
 	-I$(CPU_DIR)/cmsis \
 	-I$(JS_DIR)\

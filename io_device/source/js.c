@@ -3,7 +3,7 @@
  * build js
  *
  */
-#define IMPLEMENT_IO_JS
+#define IMPLEMENT_JS_IO
 #include <io_device.h>
 
  
