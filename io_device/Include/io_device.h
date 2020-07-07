@@ -251,7 +251,7 @@ static EVENT_DATA stm32f4_peripheral_clock_t spi1_clock = {
 
 static io_socket_t*
 spi1_socket (io_t *io,io_address_t address) {
-	static stm32f4_dma_spi_socket_t spi = {
+	static stm32f4_spi_socket_t spi = {
 		.implementation = &stm32f4_dma_spi_socket_implementation,
 		.peripheral_bus_clock = decl_io_cpu_clock_pointer(&spi1_clock),
 		.spi_registers = SPI1,
@@ -317,11 +317,11 @@ static EVENT_DATA stm32f4_peripheral_clock_t spi2_clock = {
 	.input = decl_io_cpu_clock_pointer(&apb2_clock),
 	.enable_apb_clock = stm32f4_enable_spi2_apb_clock,
 };
-		
+
 static io_socket_t*
 spi2_socket (io_t *io,io_address_t address) {
 	static stm32f4_spi_socket_t spi = {
-		.implementation = &stm32f4_spi_socket_implementation,
+		.implementation = &stm32f4_dma_spi_socket_implementation,	// change to synchronous version
 		.peripheral_bus_clock = decl_io_cpu_clock_pointer(&spi2_clock),
 		.spi_registers = SPI2,
 		.maximum_sck_frequency = 10000000,
